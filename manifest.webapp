@@ -1,0 +1,14 @@
+{
+  "version": "0.1",
+  "name": "Coontdoon",
+  "description": "The best game in the Universe",
+  "launch_path": "/countdown/app/lettersgame.html",
+  "icons": {
+	"512": "/countdown/app/images/icon512.png",
+    "128": "/countdown/app/images/icon128.png"
+  },
+  "developer": {
+    "name": "Jamie"
+  },
+  "orientation": ["landscape-primary"]
+}
