@@ -4,9 +4,7 @@ var tilePadding = 2;
 var numTiles = 9;
 var rowLength = numTiles + 1;
 
-/*This "class" is unrelated to DragTileSpace since I will never use any polymorphism between them and there is very little code the same in them. DragTileSpace will ultimately be only used for numbers and will look and behave totally differently. The only real thing in common between the two
-are the Tiles, whose looks are taken care of by CSS and whose behaviour is very different. The move methods don't even need to be the same as in this
-version each Tile will only ever be in 2 places so no bounds checking is needed. The Tile objects are so simple in this that they will just be anonymous objects */
+//Begin ClickTileSpace dfinition
 
 function ClickTileSpace(letters) {
 	this.letters = letters
@@ -24,14 +22,13 @@ function ClickTileSpace(letters) {
 	boundTileRow.append(this.boundTileCell);
 
 	this.tiles = new Array(letters.length); //Make Tiles and put them in position
-	this.bound = new Array(letters.length); //Tracks which tiles are bound
 	for (var i = 0; i < letters.length; i++) {
-		this.tiles[i] = $('<span class="tile">' + letters[i] + '</span>');
-		this.freeTileCell.append(this.tiles[i]);
-		this.tiles[i].css({"width": tileSize, "height": tileSize});
+		this.tiles[i] = new ClickTile(this, letters[i]);
+		this.freeTileCell.append(this.tiles[i].jQueryTile);
 	}
-	this.repositionFreeTiles();
+	this.repositionFreeTiles(0);
 }
+
 
 ClickTileSpace.prototype = {
 
@@ -53,26 +50,17 @@ ClickTileSpace.prototype = {
 		{"left": 128,"top": 19}
 	], //These make something roughly circular in shape.
 
-	moveTile: function(tile, newLeft, newTop) {
-		this.tiles[tile].css({"left": newLeft, "top": newTop});
-	},
-
-	animoveTile: function(tile, newLeft, newTop) {
-		this.tiles[tile].animate({"left": newLeft, "top": newTop});
-	},
-
 	setHeight: function(newHeight) {
-		this.jQuerySpace.css("height", newHeight);
+		this.freeTileCell.css("height", newHeight);
+		this.height = newHeight;
 	},
 
 	bindTile: function(tile) { //Tiles in the current word are referred to as bound for historical reasons.
 		this.word.push(tile);
-		this.bound[tile] = true;
 	},
 
 	unbindTile: function(tile) {
 		this.word.splice(this.word.indexOf(tile), 1);
-		this.bound[tile] = false;
 	},
 
 	repositionBoundTiles: function(speed) {
@@ -85,17 +73,24 @@ ClickTileSpace.prototype = {
 		for (var i = 0; i < this.word.length; i++) {
 			var newLeft = rowStart + i * totalSize;
 			var newTop = this.height;
-			this.animoveTile(this.word[i], newLeft, newTop);
+			this.word[i].animove(newLeft, newTop, speed);
 		}
 	},
 
 	repositionFreeTiles: function(speed) {
+		var animate = true;
 		if (typeof speed === "undefined") {
 			var speed = 200;
+		} else if (speed == 0) {
+			animate = false;
 		}
 		for (var i = 0; i < this.tiles.length; i++) {
-			if (!this.bound[i]) {
-					this.animoveTile(i, this.positions[i].left, this.positions[i].top);
+			if (this.tiles[i].free) {
+					if (animate) {
+						this.tiles[i].animove(this.positions[i].left, this.positions[i].top, speed);
+					} else {
+						this.tiles[i].move(this.positions[i].left, this.positions[i].top);
+					}
 			}
 		}
 	},
@@ -103,7 +98,7 @@ ClickTileSpace.prototype = {
 	getWord: function() {
 		var letters = new Array(this.word.length);
 		for (var i = 0; i < letters.length; i++) {
-			letters[i] = this.tiles[this.word[i]].text();
+			letters[i] = this.word[i].letter;
 		}
 		return letters.join("");
 	},
@@ -112,22 +107,81 @@ ClickTileSpace.prototype = {
 		var letters = word.split("");
 		//Unbind all tiles
 		for (var i = this.word.length - 1; i >= 0; i--) { //iterate backwards since removing tiles from the start messes up the loop
-			this.unbindTile(this.word[i]);
+			this.word[i].unbind();
 		}
 		//Find which tile represents each letter and bind them
 		for (var i = 0; i < letters.length; i++) {
 			//iterate through tiles until the right letter is found.
 			for (var j = 0; j < this.tiles.length; j++) {
-				if (this.tiles[j].text() == letters[i] && !this.bound[j]) {
+				if (this.tiles[j].letter == letters[i] && this.tiles[j].free) {
 					//use this tile
-					this.bindTile(j);
+					this.tiles[j].bind();
 					break;
 				}
 			}
 		}
 		this.repositionBoundTiles();
 		this.repositionFreeTiles();
-	}
+	},
+
+
 };
 
+//End ClickTileSpace definition
+
+//begin ClickTile definition
+
+function ClickTile(space, letter) {
+	this.space = space;
+	this.letter = letter;
+	this.free = true;
+	this.jQueryTile = $('<span class="tile">' + letter.toUpperCase() + '</span>');
+	this.jQueryTile.css({"width": tileSize, "height": tileSize});
+	this.jQueryTile.bind("click", this.makeClickHandler());
+	this.free = true;
+}
+
+ClickTile.prototype = {
+	
+	makeClickHandler: function() {
+		var tile = this; //this will be bound to something else when the function is run
+		var space = tile.space;
+		var clickHandler = function(e) {
+			tile.toggleBind();
+			space.repositionBoundTiles(150);
+			space.repositionFreeTiles(150);
+		}
+		return clickHandler;
+	},
+
+	bind: function() {
+		this.free = false;
+		this.space.bindTile(this);
+	},
+
+	unbind: function() {
+		this.free= true;
+		this.space.unbindTile(this);
+	},
+
+	toggleBind: function() {
+		if (this.free) {
+			this.bind();
+		} else {
+			this.unbind();
+		}
+	},
+
+	move: function(newLeft, newTop) {
+
+		this.jQueryTile.css({"left": newLeft, "top": newTop});
+	},
+
+	animove: function(newLeft, newTop, speed) {
+		if (typeof speed === "undefined") {
+			speed = 200;
+		}
+		this.jQueryTile.animate({"left": newLeft, "top": newTop}, speed, "linear");
+	}
+}
 	

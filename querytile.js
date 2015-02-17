@@ -15,19 +15,19 @@ var tiles = 0;
 
 //BEGIN TILE DEFINITION ALSO TODO: find better way of grouping together functions and prototypes.
 
-function Tile(letter, container) { //container is a TileSpace
+function DragTile(letter, container) { //container is a TileSpace
 	this.container = container;
 	this.free = true;
 	this.letter = letter;
 	this.jQueryTile = $('<span class="tile">' + letter.toUpperCase() + '</span>');
-	this.jQueryTile.bind("touchmove", Tile.makeHandleTouchMove(this));
-	this.jQueryTile.bind("touchstart", Tile.makeHandleTouchStart(this));
-	this.jQueryTile.bind("touchend", Tile.makeHandleTouchEnd(this));
-	this.jQueryTile.bind("touchcancel", Tile.makeHandleTouchEnd(this));
+	this.jQueryTile.bind("touchmove", DragTile.makeHandleTouchMove(this));
+	this.jQueryTile.bind("touchstart", DragTile.makeHandleTouchStart(this));
+	this.jQueryTile.bind("touchend", DragTile.makeHandleTouchEnd(this));
+	this.jQueryTile.bind("touchcancel", DragTile.makeHandleTouchEnd(this));
 	this.jQueryTile.css({"width": tileSize, "height": tileSize});
 }
 
-Tile.makeHandleTouchEnd = function(tile) {
+DragTile.makeHandleTouchEnd = function(tile) {
 	var handleTouchEnd = function(e) {
 		tile.container.processFullMove(tile);
 	}
@@ -35,7 +35,7 @@ Tile.makeHandleTouchEnd = function(tile) {
 }
 
 
-Tile.makeHandleTouchMove = function(tile) { //Makes a touch handler with the Tile object hard coded in.
+DragTile.makeHandleTouchMove = function(tile) { //Makes a touch handler with the DragTile object hard coded in.
 	var handleTouchMove = function(e) {
 		e.preventDefault();
 		var touch = e.originalEvent.changedTouches[0];
@@ -46,7 +46,7 @@ Tile.makeHandleTouchMove = function(tile) { //Makes a touch handler with the Til
 	return handleTouchMove;
 }
 
-Tile.makeHandleTouchStart = function(tile) {
+DragTile.makeHandleTouchStart = function(tile) {
 	var handleTouchStart = function(e) {
 		var touch = e.originalEvent.changedTouches[0];
 		activeTile = tile.jQueryTile;
@@ -58,7 +58,7 @@ Tile.makeHandleTouchStart = function(tile) {
 	return handleTouchStart;
 }
 
-Tile.prototype = {
+DragTile.prototype = {
 	move: function(newLeft, newTop) {
 		square = this.jQueryTile;
 		box = this.container.jQueryTileSpace;
@@ -153,7 +153,7 @@ TileSpace.prototype = {
 		this.boundTiles = new Array(); //Unbind all tiles.
 		letters = word.split("");
 		for (var i = 0; i < letters.length; i++) {
-			var tile; //find Tile with right letter
+			var tile; //find DragTile with right letter
 			for (var j = 0; j < this.freeTiles.length; j++) {
 				if (this.freeTiles[j].letter == letters[i]) {
 					tile = j;
@@ -169,12 +169,12 @@ TileSpace.prototype = {
 	},
 
 	addTile: function(letter) {
-		tile = new Tile(letter, this);
+		tile = new DragTile(letter, this);
 		this.jQueryFreeTileCell.append(tile.jQueryTile, this);
 		this.freeTiles.push(tile);
 	},
 
-	processFullMove: function(tile) { //Should be called when the users finger comes off a tile. tile is a Tile object.
+	processFullMove: function(tile) { //Should be called when the users finger comes off a tile. tile is a DragTile object.
 		if (parseInt(tile.jQueryTile.css("top")) > this.height - tileSize) {
 			var left = parseInt(tile.jQueryTile.css("left"));
 			var totalSize = tileSize + tilePadding;
