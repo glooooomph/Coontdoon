@@ -215,11 +215,6 @@ ClickTile.prototype = {
 		}
 	},
 
-	moveAndRecord: function(position, speed) { //Moves the tile and sets its new location as the default position
-		this.move(position, speed);
-		this.setDefaultPosition(position);
-	},
-
 	setDefaultPosition: function(position) { //Accepts a position object rather than two values
 		this.defaultPosition = position;
 	},
@@ -249,7 +244,7 @@ ClickTile.prototype = {
 			var touch = e.originalEvent.changedTouches[0];
 			var newLeft = touch.clientX - offsetX;
 			var newTop = touch.clientY - offsetY;
-			tile.moveAndRecord({"left": newLeft, "top": newTop});
+			tile.move({"left": newLeft, "top": newTop});
 		};
 		return handleTouchMove;
 	},
