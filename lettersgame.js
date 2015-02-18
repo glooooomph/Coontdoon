@@ -20,6 +20,7 @@ function initializeSpace() {
 	space = new ClickTileSpace(letters);
 	$("#tilespacespace").append(space.jQuerySpace);
 	space.setHeight(150);
+	space.repositionFreeTiles(0);
 
 }
 

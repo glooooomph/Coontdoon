@@ -3,6 +3,13 @@ var tileSize = 43;
 var tilePadding = 2;
 var numTiles = 9;
 var rowLength = numTiles + 1;
+var highestZ = 0;
+
+var offsetX;
+var offsetY;
+
+var start;
+var end;
 
 //Begin ClickTileSpace dfinition
 
@@ -25,6 +32,7 @@ function ClickTileSpace(letters) {
 	for (var i = 0; i < letters.length; i++) {
 		this.tiles[i] = new ClickTile(this, letters[i]);
 		this.freeTileCell.append(this.tiles[i].jQueryTile);
+		this.tiles[i].setDefaultPosition(this.positions[i]);
 	}
 	this.repositionFreeTiles(0);
 }
@@ -73,27 +81,19 @@ ClickTileSpace.prototype = {
 		for (var i = 0; i < this.word.length; i++) {
 			var newLeft = rowStart + i * totalSize;
 			var newTop = this.height;
-			this.word[i].animove(newLeft, newTop, speed);
+			this.word[i].move(newLeft, newTop, speed);
 		}
 	},
 
 	repositionFreeTiles: function(speed) {
-		var animate = true;
-		if (typeof speed === "undefined") {
-			var speed = 200;
-		} else if (speed == 0) {
-			animate = false;
-		}
 		for (var i = 0; i < this.tiles.length; i++) {
 			if (this.tiles[i].free) {
-					if (animate) {
-						this.tiles[i].animove(this.positions[i].left, this.positions[i].top, speed);
-					} else {
-						this.tiles[i].move(this.positions[i].left, this.positions[i].top);
-					}
+				this.tiles[i].moveToDefaultPosition(speed);
 			}
 		}
 	},
+		
+		
 
 	getWord: function() {
 		var letters = new Array(this.word.length);
@@ -138,10 +138,18 @@ function ClickTile(space, letter) {
 	this.jQueryTile = $('<span class="tile">' + letter.toUpperCase() + '</span>');
 	this.jQueryTile.css({"width": tileSize, "height": tileSize});
 	this.jQueryTile.bind("click", this.makeClickHandler());
+	this.jQueryTile.bind("touchstart", this.makeTouchStartHandler());
+	this.jQueryTile.bind("touchmove", this.makeTouchMoveHandler());
+	this.jQueryTile.bind("touchend", this.makeTouchEndHandler());
 	this.free = true;
 }
 
 ClickTile.prototype = {
+
+	defaultPosition: {
+		"left": 0,
+		"right": 0
+	},
 	
 	makeClickHandler: function() {
 		var tile = this; //this will be bound to something else when the function is run
@@ -156,7 +164,7 @@ ClickTile.prototype = {
 
 	bind: function() {
 		this.free = false;
-		this.space.bindTile(this);
+		this.space.bindTile(this); //These functions do not reposition bound tiles.
 	},
 
 	unbind: function() {
@@ -172,16 +180,93 @@ ClickTile.prototype = {
 		}
 	},
 
-	move: function(newLeft, newTop) {
+	checkBounds: function(newLeft, newTop) {
+		var square = this.jQueryTile;
+		var box = this.space.jQuerySpace;
+		var maxTop = box.height() - tileSize;
+		var maxLeft = box.width() - tileSize;
+		if (newLeft < 0) {
+			newLeft = 0;
+		}
+		if (newLeft > maxLeft) {
+			newLeft = maxLeft;
+		}
+		if (newTop < 0) {
+			newTop = 0;
+		}
+		if (newTop > maxTop) {
+			newTop = maxTop;
+		}
+		return {"left": newLeft, "top": newTop};
+	},
 
-		this.jQueryTile.css({"left": newLeft, "top": newTop});
+	move: function(newLeft, newTop) {
+		this.jQueryTile.css(this.checkBounds(newLeft, newTop));
 	},
 
 	animove: function(newLeft, newTop, speed) {
 		if (typeof speed === "undefined") {
 			speed = 200;
 		}
-		this.jQueryTile.animate({"left": newLeft, "top": newTop}, speed, "linear");
+		this.jQueryTile.animate(this.checkBounds(newLeft, newTop), speed, "linear");
+	},
+
+	setDefaultPosition: function(position) { //Accepts a position object rather than two values
+		this.defaultPosition = position;
+	},
+
+	moveToDefaultPosition: function(speed) {
+		var animate = true;
+		if (typeof speed === "undefined") {
+			var speed = 200;
+		} else if (speed == 0) {
+			animate = false;
+		}
+		if (animate) {
+			this.animove(this.defaultPosition.left, this.defaultPosition.top, speed);
+		} else {
+			this.move(this.defaultPosition.left, this.defaultPosition.top);
+		}
+	},
+
+	makeTouchEndHandler: function() {
+		var tile = this;
+		var handleTouchEnd = function(e) {
+			e.preventDefault();
+			end = new Date().getTime();
+			if (end - start < 100) {
+				tile.jQueryTile.trigger("click"); //if the touch was short then pretend it was a click
+			} else {
+				tile.space.processFullMove(this);
+			}
+		}
+		return handleTouchEnd;
+	},
+
+	makeTouchMoveHandler: function() {
+		var tile = this;
+		var handleTouchMove = function(e) {
+			e.preventDefault();
+			var touch = e.originalEvent.changedTouches[0];
+			var newLeft = touch.clientX - offsetX;
+			var newTop = touch.clientY - offsetY;
+			tile.move(newLeft, newTop);
+		};
+		return handleTouchMove;
+	},
+
+	makeTouchStartHandler: function() {
+		var tile = this;
+		var handleTouchStart = function(e) {
+			e.preventDefault();
+			start = new Date().getTime();
+			var touch = e.originalEvent.changedTouches[0];
+			highestZ++; //Bring tile to front
+			tile.jQueryTile.css("z-index", highestZ);
+			offsetX = touch.clientX - (tile.jQueryTile.position().left);
+			offsetY = touch.clientY - (tile.jQueryTile.position().top);
+		};
+		return handleTouchStart;
 	}
 }
 	
