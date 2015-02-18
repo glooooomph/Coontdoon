@@ -157,7 +157,6 @@ ClickTile.prototype = {
 		var clickHandler = function(e) {
 			tile.toggleBind();
 			space.repositionBoundTiles(150);
-			space.repositionFreeTiles(150);
 		}
 		return clickHandler;
 	},
@@ -177,6 +176,7 @@ ClickTile.prototype = {
 			this.bind();
 		} else {
 			this.unbind();
+			this.moveToDefaultPosition(150);
 		}
 	},
 
@@ -215,6 +215,11 @@ ClickTile.prototype = {
 		}
 	},
 
+	moveAndRecord: function(position, speed) { //Moves the tile and sets its new location as the default position
+		this.move(position, speed);
+		this.setDefaultPosition(position);
+	},
+
 	setDefaultPosition: function(position) { //Accepts a position object rather than two values
 		this.defaultPosition = position;
 	},
@@ -244,7 +249,7 @@ ClickTile.prototype = {
 			var touch = e.originalEvent.changedTouches[0];
 			var newLeft = touch.clientX - offsetX;
 			var newTop = touch.clientY - offsetY;
-			tile.move(newLeft, newTop);
+			tile.moveAndRecord({"left": newLeft, "top": newTop});
 		};
 		return handleTouchMove;
 	},
