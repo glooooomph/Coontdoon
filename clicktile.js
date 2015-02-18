@@ -81,7 +81,7 @@ ClickTileSpace.prototype = {
 		for (var i = 0; i < this.word.length; i++) {
 			var newLeft = rowStart + i * totalSize;
 			var newTop = this.height;
-			this.word[i].move(newLeft, newTop, speed);
+			this.word[i].move({"left": newLeft, "top": newTop}, speed);
 		}
 	},
 
@@ -180,7 +180,9 @@ ClickTile.prototype = {
 		}
 	},
 
-	checkBounds: function(newLeft, newTop) {
+	checkBounds: function(position) {
+		var newLeft = position.left;
+		var newTop = position.top;
 		var square = this.jQueryTile;
 		var box = this.space.jQuerySpace;
 		var maxTop = box.height() - tileSize;
@@ -200,15 +202,17 @@ ClickTile.prototype = {
 		return {"left": newLeft, "top": newTop};
 	},
 
-	move: function(newLeft, newTop) {
-		this.jQueryTile.css(this.checkBounds(newLeft, newTop));
-	},
-
-	animove: function(newLeft, newTop, speed) {
+	move: function(position, speed) { //If speed is provided the move is animated at that speed.
+		var animate = true;
 		if (typeof speed === "undefined") {
-			speed = 200;
+			animate = false;
 		}
-		this.jQueryTile.animate(this.checkBounds(newLeft, newTop), speed, "linear");
+		var newPosition = this.checkBounds(position);
+		if (animate) {
+			this.jQueryTile.animate(newPosition, speed);
+		} else {
+			this.jQueryTile.css(newPosition);
+		}
 	},
 
 	setDefaultPosition: function(position) { //Accepts a position object rather than two values
@@ -216,17 +220,7 @@ ClickTile.prototype = {
 	},
 
 	moveToDefaultPosition: function(speed) {
-		var animate = true;
-		if (typeof speed === "undefined") {
-			var speed = 200;
-		} else if (speed == 0) {
-			animate = false;
-		}
-		if (animate) {
-			this.animove(this.defaultPosition.left, this.defaultPosition.top, speed);
-		} else {
-			this.move(this.defaultPosition.left, this.defaultPosition.top);
-		}
+		this.move(this.defaultPosition, speed);
 	},
 
 	makeTouchEndHandler: function() {
