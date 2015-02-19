@@ -15,7 +15,7 @@ function init(e) {
 }
 
 function initializeSpace() {
-	letters = getLetters(4);
+	letters = getLetters(3);
 	answer = longestWord(letters);
 	space = new ClickTileSpace(letters);
 	$("#tilespacespace").append(space.jQuerySpace);

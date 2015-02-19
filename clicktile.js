@@ -4,6 +4,7 @@ var tilePadding = 2;
 var numTiles = 9;
 var rowLength = numTiles + 1;
 var highestZ = 0;
+var repositionSpeed = 150;
 
 var offsetX;
 var offsetY;
@@ -34,7 +35,7 @@ function ClickTileSpace(letters) {
 		this.freeTileCell.append(this.tiles[i].jQueryTile);
 		this.tiles[i].setDefaultPosition(this.positions[i]);
 	}
-	this.repositionFreeTiles(0);
+	this.repositionFreeTiles();
 }
 
 
@@ -72,12 +73,9 @@ ClickTileSpace.prototype = {
 	},
 
 	repositionBoundTiles: function(speed) {
-		if (typeof speed === "undefined") {
-			var speed = 200;
-		}
 		var totalSize = tileSize + tilePadding;
 		var rowLengthPixels = this.word.length * totalSize;
-		var rowStart = (this.width - (totalSize * this.word.length)) / 2 >> 0;
+		var rowStart = Math.floor((this.width - (totalSize * this.word.length)) / 2);
 		for (var i = 0; i < this.word.length; i++) {
 			var newLeft = rowStart + i * totalSize;
 			var newTop = this.height;
@@ -124,6 +122,48 @@ ClickTileSpace.prototype = {
 		this.repositionFreeTiles();
 	},
 
+	processFullMove: function(tile) {
+		var left = tile.currentPosition.left;
+		var top = tile.currentPosition.top;
+		if (top > this.height - tileSize) {
+			var totalSize = tileSize + tilePadding; //Calculate some useful constants
+			var rowLengthPixels = this.word.length * totalSize;
+			var rowStart = Math.floor((this.width - (totalSize * this.word.length)) / 2)
+			var rowEnd = rowLengthPixels - rowStart;
+			var position; //Calculate the new position
+			if (rowLengthPixels > 0) {
+				position = Math.floor(1 + (left - rowStart) / totalSize)
+				if (position < 0) {
+					position = 0;
+				} else if (position > this.word.length) {
+					position = this.word.length;
+				}
+			} else {
+				position = 0;
+			}
+			if (tile.free) { //finally bind the tile to the right place.
+				tile.free = false
+				this.word.splice(position, 0, tile);
+			} else {
+				oldPosition = this.word.indexOf(tile);
+				this.word.splice(position, 0, tile);
+				if (position < oldPosition) {
+					oldPosition++; //Adjust oldPosition in the case a new tile has been inserted.
+				}
+				this.word.splice(oldPosition, 1);
+			}
+		} else {
+			if (!tile.free) {
+				tile.free = true;
+				this.word.splice(this.word.indexOf(tile), 1);
+			}
+		}
+		if (tile.free) { //record change in default position if after everything the tile is free
+			tile.setDefaultPosition(tile.currentPosition);
+		}
+		this.repositionBoundTiles(repositionSpeed);
+	}
+
 
 };
 
@@ -142,6 +182,7 @@ function ClickTile(space, letter) {
 	this.jQueryTile.bind("touchmove", this.makeTouchMoveHandler());
 	this.jQueryTile.bind("touchend", this.makeTouchEndHandler());
 	this.free = true;
+	this.currentPosition = this.defaultPosition;
 }
 
 ClickTile.prototype = {
@@ -156,17 +197,17 @@ ClickTile.prototype = {
 		var space = tile.space;
 		var clickHandler = function(e) {
 			tile.toggleBind();
-			space.repositionBoundTiles(150);
+			space.repositionBoundTiles(repositionSpeed);
 		}
 		return clickHandler;
 	},
 
-	bind: function() {
+	bind: function() { //This function is specifically for use with clicks as it uses bindTile which bind the tile to the end of the word.
 		this.free = false;
 		this.space.bindTile(this); //These functions do not reposition bound tiles.
 	},
 
-	unbind: function() {
+	unbind: function() { //This function can be used for clicks or for drags since there is only one way to unbind a tile and this does not reposition.
 		this.free= true;
 		this.space.unbindTile(this);
 	},
@@ -176,7 +217,7 @@ ClickTile.prototype = {
 			this.bind();
 		} else {
 			this.unbind();
-			this.moveToDefaultPosition(150);
+			this.moveToDefaultPosition(repositionSpeed);
 		}
 	},
 
@@ -208,6 +249,7 @@ ClickTile.prototype = {
 			animate = false;
 		}
 		var newPosition = this.checkBounds(position);
+		this.currentPosition = newPosition;
 		if (animate) {
 			this.jQueryTile.animate(newPosition, speed);
 		} else {
@@ -215,7 +257,10 @@ ClickTile.prototype = {
 		}
 	},
 
-	setDefaultPosition: function(position) { //Accepts a position object rather than two values
+	setDefaultPosition: function(position) { //If no position is provided the current position is used.
+		if (typeof position === "undefined") {
+			position = this.currentPosition;
+		}
 		this.defaultPosition = position;
 	},
 
@@ -228,10 +273,10 @@ ClickTile.prototype = {
 		var handleTouchEnd = function(e) {
 			e.preventDefault();
 			end = new Date().getTime();
-			if (end - start < 100) {
+			if (!tile.moved) {
 				tile.jQueryTile.trigger("click"); //if the touch was short then pretend it was a click
 			} else {
-				tile.space.processFullMove(this);
+				tile.space.processFullMove(tile);
 			}
 		}
 		return handleTouchEnd;
@@ -241,6 +286,7 @@ ClickTile.prototype = {
 		var tile = this;
 		var handleTouchMove = function(e) {
 			e.preventDefault();
+			tile.moved = true;
 			var touch = e.originalEvent.changedTouches[0];
 			var newLeft = touch.clientX - offsetX;
 			var newTop = touch.clientY - offsetY;
@@ -254,6 +300,7 @@ ClickTile.prototype = {
 		var handleTouchStart = function(e) {
 			e.preventDefault();
 			start = new Date().getTime();
+			tile.moved = false;
 			var touch = e.originalEvent.changedTouches[0];
 			highestZ++; //Bring tile to front
 			tile.jQueryTile.css("z-index", highestZ);
